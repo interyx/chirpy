@@ -2,12 +2,17 @@ package main
 
 import _ "github.com/lib/pq"
 import (
+	"database/sql"
 	"fmt"
+	"github.com/interyx/chirpy/internal/database"
+	"github.com/joho/godotenv"
 	"net/http"
+	"os"
 	"sync/atomic"
 )
 
 type apiConfig struct {
+	db             *database.Queries
 	fileserverHits atomic.Int32
 }
 
@@ -24,8 +29,20 @@ func fileHandler() http.Handler {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Printf("Cannot find .env.\nAn environment file with the database string is required.\n")
+	}
+	dbURL := os.Getenv("DB_URL")
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		fmt.Printf("An error occurred opening the database: %s\n", err)
+	}
 	muxer := http.NewServeMux()
-	apiCfg := apiConfig{}
+	dbQueries := database.New(db)
+	apiCfg := apiConfig{
+		db: dbQueries,
+	}
 	muxer.Handle("/app/", apiCfg.middlewareMetricsInc(fileHandler()))
 	muxer.HandleFunc("GET /api/healthz", readyHandler)
 	muxer.HandleFunc("GET /admin/metrics", apiCfg.writeCountHandler)
@@ -35,8 +52,8 @@ func main() {
 		Handler: muxer,
 		Addr:    ":8080",
 	}
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
-		fmt.Printf("An error has occurred: %v", err)
+		fmt.Printf("An error has occurred: %v\n", err)
 	}
 }
