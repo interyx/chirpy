@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func readyHandler(w http.ResponseWriter, req *http.Request) {
@@ -22,8 +23,8 @@ func validateChirp(w http.ResponseWriter, req *http.Request) {
 	}
 
 	type returnVals struct {
-		Valid bool   `json:"valid"`
-		Error string `json:"error"`
+		CleanStr string `json:"cleaned_body"`
+		Error    string `json:"error"`
 	}
 	w.Header().Set("Content-Type", "application/json")
 	// decode request
@@ -37,7 +38,7 @@ func validateChirp(w http.ResponseWriter, req *http.Request) {
 	}
 	// construct response
 	if len(params.Body) <= 140 {
-		respBody.Valid = true
+		respBody.CleanStr = cleanString(params.Body)
 		w.WriteHeader(200)
 	} else {
 		respBody.Error = "Chirp is too long"
@@ -50,4 +51,28 @@ func validateChirp(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.Write(out)
+}
+
+func cleanString(str string) string {
+	banned_words := []string{
+		"kerfuffle",
+		"sharbert",
+		"fornax",
+	}
+	results := make([]string, len(str))
+	wordsList := strings.Split(str, " ")
+	for _, word := range wordsList {
+		added := false
+		for _, badWord := range banned_words {
+			if strings.ToLower(word) == badWord {
+				results = append(results, "****")
+				added = true
+				break
+			}
+		}
+		if !added {
+			results = append(results, word)
+		}
+	}
+	return strings.Trim(strings.Join(results, " "), " ")
 }
