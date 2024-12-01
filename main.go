@@ -52,6 +52,7 @@ func main() {
 	muxer.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
 	muxer.HandleFunc("POST /api/chirps", apiCfg.createChirpHandler)
 	muxer.HandleFunc("POST /api/users", apiCfg.addUser)
+	muxer.HandleFunc("GET /api/chirps", apiCfg.getChirpsHandler)
 	server := http.Server{
 		Handler: muxer,
 		Addr:    ":8080",
