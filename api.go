@@ -46,7 +46,7 @@ func (cfg *apiConfig) addUser(w http.ResponseWriter, req *http.Request) {
 	}
 	user, err := cfg.db.CreateUser(req.Context(), userParameters)
 	if err != nil {
-		fmt.Println("An error occurred inserting the user into the database: %s", err)
+		fmt.Printf("An error occurred inserting the user into the database: %s", err)
 		w.WriteHeader(500)
 		return
 	}
@@ -66,39 +66,44 @@ func (cfg *apiConfig) addUser(w http.ResponseWriter, req *http.Request) {
 	w.Write(out)
 }
 
-func validateChirp(w http.ResponseWriter, req *http.Request) {
+func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, req *http.Request) {
 	type parameters struct {
-		Body string `json:"body"`
+		Body   string    `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
 	}
-
-	type returnVals struct {
-		CleanStr string `json:"cleaned_body"`
-		Error    string `json:"error"`
-	}
-	w.Header().Set("Content-Type", "application/json")
-	// decode request
 	decoder := json.NewDecoder(req.Body)
 	params := parameters{}
-	var respBody returnVals
 	if err := decoder.Decode(&params); err != nil {
-		log.Printf("Error decoding request body: %s", err)
+		log.Printf("Error decoding request string: %s", err)
 		w.WriteHeader(400)
 		return
 	}
-	// construct response
+	var chirp string
 	if len(params.Body) <= 140 {
-		respBody.CleanStr = cleanString(params.Body)
-		w.WriteHeader(200)
+		chirp = cleanString(params.Body)
 	} else {
-		respBody.Error = "Chirp is too long"
 		w.WriteHeader(400)
-	}
-	out, err := json.Marshal(respBody)
-	if err != nil {
-		log.Printf("Error marshalling json: %s", err)
-		w.WriteHeader(500)
 		return
 	}
+	chirpParams := database.CreateChirpParams{
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Body:      chirp,
+		UserID:    params.UserID,
+	}
+	newChirp, err := cfg.db.CreateChirp(req.Context(), chirpParams)
+	if err != nil {
+		log.Printf("An error occurred while creating the chirp: %s\n", err)
+		w.WriteHeader(400)
+		return
+	}
+	out, err := json.Marshal(newChirp)
+	if err != nil {
+		log.Printf("An error occurred marshaling JSON data: %s", err)
+		return
+	}
+	w.WriteHeader(201)
 	w.Write(out)
 }
 
