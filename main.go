@@ -14,6 +14,7 @@ import (
 type apiConfig struct {
 	db             *database.Queries
 	fileserverHits atomic.Int32
+	platform       string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -34,6 +35,7 @@ func main() {
 		fmt.Printf("Cannot find .env.\nAn environment file with the database string is required.\n")
 	}
 	dbURL := os.Getenv("DB_URL")
+	platform := os.Getenv("PLATFORM")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		fmt.Printf("An error occurred opening the database: %s\n", err)
@@ -41,13 +43,15 @@ func main() {
 	muxer := http.NewServeMux()
 	dbQueries := database.New(db)
 	apiCfg := apiConfig{
-		db: dbQueries,
+		db:       dbQueries,
+		platform: platform,
 	}
 	muxer.Handle("/app/", apiCfg.middlewareMetricsInc(fileHandler()))
 	muxer.HandleFunc("GET /api/healthz", readyHandler)
 	muxer.HandleFunc("GET /admin/metrics", apiCfg.writeCountHandler)
 	muxer.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
 	muxer.HandleFunc("POST /api/validate_chirp", validateChirp)
+	muxer.HandleFunc("POST /api/users", apiCfg.addUser)
 	server := http.Server{
 		Handler: muxer,
 		Addr:    ":8080",
