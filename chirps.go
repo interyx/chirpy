@@ -27,6 +27,29 @@ func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, req *http.Request)
 	w.Write(out)
 }
 
+func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, req *http.Request) {
+	id, err := uuid.Parse(req.PathValue("id"))
+	if err != nil {
+		log.Printf("UUID could not be parsed\n%s", err)
+		w.WriteHeader(400)
+		return
+	}
+	chirp, err := cfg.db.GetChirp(req.Context(), id)
+	if err != nil {
+		log.Printf("An error occurred retrieving the record: %s", err)
+		w.WriteHeader(400)
+		return
+	}
+	out, err := json.Marshal(chirp)
+	if err != nil {
+		log.Printf("An error occurred marshalling JSON: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write(out)
+}
+
 func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, req *http.Request) {
 	type parameters struct {
 		Body   string    `json:"body"`
