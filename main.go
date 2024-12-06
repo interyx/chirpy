@@ -54,6 +54,7 @@ func main() {
 	muxer.HandleFunc("POST /api/users", apiCfg.addUser)
 	muxer.HandleFunc("GET /api/chirps", apiCfg.getChirpsHandler)
 	muxer.HandleFunc("GET /api/chirps/{id}", apiCfg.getChirpHandler)
+	muxer.HandleFunc("POST /api/login", apiCfg.loginHandler)
 	server := http.Server{
 		Handler: muxer,
 		Addr:    ":8080",
@@ -62,4 +63,20 @@ func main() {
 	if err != nil {
 		fmt.Printf("An error has occurred: %v\n", err)
 	}
+}
+
+func respondWithError(w http.ResponseWriter, code int, msg string) {
+	w.WriteHeader(code)
+	w.Header().Set("Content-Type", "text/plain;encoding=utf-8")
+	fmt.Fprintf(w, "%s", msg)
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	w.WriteHeader(code)
+	w.Header().Set("Content-Type", "application/json")
+	out, ok := payload.([]byte)
+	if !ok {
+		respondWithError(w, 500, "An internal error occurred while writing the payload")
+	}
+	w.Write(out)
 }
