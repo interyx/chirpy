@@ -79,14 +79,16 @@ func (cfg *apiConfig) addUser(w http.ResponseWriter, req *http.Request) {
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
 	type parameters struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password         string `json:"password"`
+		Email            string `json:"email"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
 	type outerface struct {
 		ID        uuid.UUID `json:"id"`
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
 		Email     string    `json:"email"`
+		Token     string    `json:"token"`
 	}
 	decoder := json.NewDecoder(req.Body)
 	params := parameters{}
@@ -106,11 +108,27 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
 		respondWithError(w, 401, "Incorrect email or password")
 		return
 	}
+	expirationTime := 60 * 60
+	if params.ExpiresInSeconds > 0 {
+		if params.ExpiresInSeconds < expirationTime {
+			expirationTime = params.ExpiresInSeconds
+		}
+	}
+	durationString := fmt.Sprintf("%vs", expirationTime)
+	d, err := time.ParseDuration(durationString)
+	if err != nil {
+		respondWithError(w, 500, "Internal error parsing time")
+	}
+	token, err := auth.MakeJWT(user.ID, cfg.signJWT, d)
+	if err != nil {
+		respondWithError(w, 500, "Could not create JWT")
+	}
 	data := outerface{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		Token:     token,
 	}
 	out, err := json.Marshal(data)
 	if err != nil {

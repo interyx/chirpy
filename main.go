@@ -15,6 +15,7 @@ type apiConfig struct {
 	db             *database.Queries
 	fileserverHits atomic.Int32
 	platform       string
+	signJWT        string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -36,6 +37,7 @@ func main() {
 	}
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
+	tokenSecret := os.Getenv("SIGN_KEY")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		fmt.Printf("An error occurred opening the database: %s\n", err)
@@ -45,6 +47,7 @@ func main() {
 	apiCfg := apiConfig{
 		db:       dbQueries,
 		platform: platform,
+		signJWT:  tokenSecret,
 	}
 	muxer.Handle("/app/", apiCfg.middlewareMetricsInc(fileHandler()))
 	muxer.HandleFunc("GET /api/healthz", readyHandler)

@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
-	"github.com/interyx/chirpy/internal/database"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/interyx/chirpy/internal/auth"
+	"github.com/interyx/chirpy/internal/database"
 )
 
 func (cfg *apiConfig) getChirpsHandler(w http.ResponseWriter, req *http.Request) {
@@ -52,8 +54,7 @@ func (cfg *apiConfig) getChirpHandler(w http.ResponseWriter, req *http.Request) 
 
 func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, req *http.Request) {
 	type parameters struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 	decoder := json.NewDecoder(req.Body)
 	params := parameters{}
@@ -62,6 +63,7 @@ func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, req *http.Reques
 		w.WriteHeader(400)
 		return
 	}
+
 	var chirp string
 	if len(params.Body) <= 140 {
 		chirp = cleanString(params.Body)
@@ -69,12 +71,26 @@ func (cfg *apiConfig) createChirpHandler(w http.ResponseWriter, req *http.Reques
 		w.WriteHeader(400)
 		return
 	}
+
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		w.WriteHeader(401)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.signJWT)
+
+	if err != nil {
+		w.WriteHeader(401)
+		return
+	}
+
 	chirpParams := database.CreateChirpParams{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Body:      chirp,
-		UserID:    params.UserID,
+		UserID:    userID,
 	}
 	newChirp, err := cfg.db.CreateChirp(req.Context(), chirpParams)
 	if err != nil {
