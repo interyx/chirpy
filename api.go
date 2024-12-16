@@ -84,11 +84,12 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
 		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
 	type outerface struct {
-		ID        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-		Token     string    `json:"token"`
+		ID           uuid.UUID `json:"id"`
+		CreatedAt    time.Time `json:"created_at"`
+		UpdatedAt    time.Time `json:"updated_at"`
+		Email        string    `json:"email"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token"`
 	}
 	decoder := json.NewDecoder(req.Body)
 	params := parameters{}
@@ -123,12 +124,17 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		respondWithError(w, 500, "Could not create JWT")
 	}
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respondWithError(w, 500, "Error generating refresh token")
+	}
 	data := outerface{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Token:     token,
+		ID:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Token:        token,
+		RefreshToken: refreshToken,
 	}
 	out, err := json.Marshal(data)
 	if err != nil {
